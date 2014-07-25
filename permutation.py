@@ -29,17 +29,21 @@ def permute(eoj_list, i, n, ret) :
 i should not be composed with zero : 103 (x)
 i's decimal points should be equal to dp : 123, 321, ...
 i's element should not be greater than dp : 114 (x)
+each digit should be distinct : 12345 (o), 22344(x)
 '''
 def sum_digit(i, dp) :
     str_i = str(i)
     if len(str_i) != dp : return 0
     sum = 0
+    distinct = {}
     for ch in str_i :
         if ch == '0' : return 0
         int_ch = int(ch)
         if int_ch > dp : return 0
+        distinct[ch] = int_ch
         sum += int_ch
-    return sum
+    if len(distinct) != dp : return 0
+    return sum    
 
 '''
 dp  = 3
