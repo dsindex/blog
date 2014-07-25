@@ -1,0 +1,22 @@
+## Enable Math
+
+1. Math rendering is disabled by default, to enable it, check on the *Enable Math* option in *Preferences* > *General* > *All Documents*:.
+
+2. Make sure you've connected to the internet.
+
+   The Math rendering is powered by [MathJax](http://www.mathjax.org), the resources such as fonts are all online, thus the internet connection is needed for it to work.
+   
+3. For Users in mainland China
+
+   Users in mainland China, if the Math option doesn't work for you, try if you can visit [MathJax](http://www.mathjax.org) without VPN connected. If you can't, maybe it's blocked by the Great Firewall of China. Try connect to a VPN, climb over the wall, then the Math rendering should work.
+
+### Known issues of Math option
+
+1. It makes the Preview blink and blink again whenever typing.
+
+   Math support is a good addition, except that it makes the Preview blink and blink again whenever typing, as it needs to refresh the whole typesetting.
+
+2. It makes the Right View always scroll to top whenever typing.
+
+ 
+That's why I make it disabled by default. I suggest only enable it when you write Math Formulas, or better, only enable it when you export document to HTML which contains Math Formulas, when you are writing, disable it.
