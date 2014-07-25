@@ -3,4 +3,5 @@
 ### Algorithm
 ### Machine Learning
 
-> see wiki
+
+details in [Wiki](https://github.com/dsindex/blog/wiki)
