@@ -102,9 +102,9 @@ int main(int    argc, char  *argv[])
             } else continue;
         } else continue;
 
-        key.mv_data = strdup(s_key);
+        key.mv_data = s_key;
         key.mv_size = strlen(s_key) + 1;
-        data.mv_data = strdup(s_value);
+        data.mv_data = s_value;
         data.mv_size = strlen(s_value) + 1;
         
         
