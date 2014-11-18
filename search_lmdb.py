@@ -24,7 +24,7 @@ if __name__ == '__main__':
 
 
     # env == db coz max_dbs=0
-    env = lmdb.Environment(db_path,map_size=24*(1023**3),subdir=True,readonly=True,create=False,max_dbs=0,lock=False)
+    env = lmdb.Environment(db_path,map_size=24*(1023**3),subdir=False,readonly=True,create=False,max_dbs=0,lock=False)
     txn = lmdb.Transaction(env,db=None,write=False)
 
     startTime = time.time()
