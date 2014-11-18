@@ -105,11 +105,11 @@ int main(int    argc, char  *argv[])
             strcpy(s_key, token);
         } else continue;
         
-        key.mv_data = strdup(s_key);
+        key.mv_data = s_key;
         key.mv_size = strlen(s_key) + 1;
 
-        rc = mdb_cursor_get(mc, &key, &data, 0);
-        if(rc != MDB_NOTFOUND) {
+        rc = mdb_get(txn, dbi, &key, &data);
+        if(!rc) {
             fprintf(stdout, "%s\t%s\n", s_key, (char*)data.mv_data);
         }
 
