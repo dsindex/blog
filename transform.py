@@ -93,7 +93,7 @@ def save_lda(lda, lda_path) :
     lsi.save(lda_path)
 
 def load_lda(lda_path) :
-    lda = ldamodel.LdaModel.load(lda_path)
+    lda = models.LdaModel.load(lda_path)
     return lda
     
 '''
