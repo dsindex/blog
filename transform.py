@@ -90,7 +90,7 @@ def corpus_to_lda(corpus, dictionary, topic_number) :
     return model
 
 def save_lda(lda, lda_path) :
-    lsi.save(lda_path)
+    lda.save(lda_path)
 
 def load_lda(lda_path) :
     lda = models.LdaModel.load(lda_path)
