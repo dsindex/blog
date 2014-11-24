@@ -142,28 +142,9 @@ if __name__ == '__main__':
 
     tfidf = corpus_to_tfidf(corpus)
     save_tfidf(tfidf, tfidf_path)
-    tfidf = load_tfidf(tfidf_path)
-    
+
     lsi = corpus_to_lsi(corpus, tfidf, dictionary, 10)
     save_lsi(lsi, lsi_path)
-    lsi = load_lsi(lsi_path)
 
     lda = corpus_to_lda(corpus, dictionary, 10)
     save_lda(lda, lda_path)
-    lda = load_lda(lda_path)
-
-    linecount = 0
-    while 1 :
-        try : line = sys.stdin.readline()
-        except KeyboardInterrupt : break
-        if not line : break
-        try : line = line.strip()
-        except : continue
-        if not line : continue
-        linecount += 1
-        if linecount % 1000 == 0 :
-            sys.stderr.write("[linecount]" + "\t" + str(linecount) + "\n")
-        vector = dictionary.doc2bow(line.lower().split())
-        print tfidf[vector]
-        print lsi[vector]
-        print lda[vector]
