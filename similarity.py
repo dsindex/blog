@@ -160,7 +160,7 @@ if __name__ == '__main__':
     lsi = load_lsi(lsi_path)
     lda = load_lda(lda_path)
 
-    simmat = corpus_to_simmat(corpus, lsi)
+    simmat = corpus_to_simmat(corpus, tfidf)
     save_simmat(simmat, simmat_path)
     simmat = load_simmat(simmat_path)
 
@@ -177,9 +177,17 @@ if __name__ == '__main__':
             sys.stderr.write("[linecount]" + "\t" + str(linecount) + "\n")
         vector = dictionary.doc2bow(line.lower().split())
         vec_tfidf = tfidf[vector]
-        vec_lsi = lsi[vector] # convert the query to LSI space
+        vec_lsi = lsi[vector]
         vec_lda = lda[vector]
-
-        sims = simmat[vec_lsi] # perform a similarity query against the corpus
+        
+        sims = simmat[vec_tfidf] # perform a similarity query against the corpus
         sims = sorted(enumerate(sims), key=lambda item: -item[1])
-        print sims # print (document_number, document_similarity) 2-tuples
+        idx = 0
+        for docid, similarity in sims :
+            if idx >= 5 : break
+            output = [str(similarity)]
+            for termid, freq in corpus[docid] :
+                term = dictionary.get(termid)
+                output.append(term + "/" + str(freq))
+            print "\t".join(output)
+            idx += 1
