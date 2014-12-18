@@ -34,10 +34,7 @@ def map_func2(entry) :
     return (key,reduce(lambda a,b: a+b,value))
     
 '''
-[usage]
-pyspark wordcount_spark.py -f some_file_on_hdfs
-or
-spark-submit wordcount_spark.py -f some_file_on_hdfs
+usage : spark-submit --master yarn-client --driver-memory 1g --executor-memory 2g --executor-cores 1 --num-executors 5 wordcount.py -f input_file_on_hdfs
 '''
 if __name__ == "__main__":
     parser = OptionParser()
@@ -53,19 +50,28 @@ if __name__ == "__main__":
         sys.exit(1)
 
     sc = SparkContext(appName="PythonWordCount")
-    lines = sc.textFile(file_path, 1)
 
-
-    # save to hdfs
     '''
-    counts = lines.flatMap(lambda x: x.split(' ')) \
+    # read from hdfs directory
+    lines = sc.wholeTextFiles(file_path, 1)
+    counts = lines.values().flatMap(lambda x: x.split(' ')) \
             .map(lambda x: (x, 1)) \
             .reduceByKey(lambda a, b: a + b) \
             .sortBy(lambda x: x[1],ascending=False)
     counts.saveAsHadoopFile("gensim/output","org.apache.hadoop.mapred.TextOutputFormat")
     '''
+
+    lines = sc.textFile(file_path, 1)
+
+    # save to hdfs
+    counts = lines.flatMap(lambda x: x.split(' ')) \
+            .map(lambda x: (x, 1)) \
+            .reduceByKey(lambda a, b: a + b) \
+            .sortBy(lambda x: x[1],ascending=False)
+    counts.saveAsHadoopFile("gensim/output","org.apache.hadoop.mapred.TextOutputFormat")
     
     '''
+    lines = sc.textFile(file_path, 1)
     # user defined map,reduce
     # map : string -> [(a,1),(b,1),..],[(a,1),(c,1),...],....
     # flatMap : list of list -> [(a,1),(b,1),....,(a,1),(c,1),....]
@@ -79,6 +85,8 @@ if __name__ == "__main__":
     counts.saveAsHadoopFile("gensim/output","org.apache.hadoop.mapred.TextOutputFormat")
     '''
 
+    '''
+    lines = sc.textFile(file_path, 1)
     # user defined map,reduce
     counts = lines.map(map_func) \
             .flatMap(lambda x: x) \
@@ -88,8 +96,10 @@ if __name__ == "__main__":
     output = counts.collect()
     for key,value in output :
         print key + "\t" + str(value)
+    '''
 
     '''
+    lines = sc.textFile(file_path, 1)
     # save to local
     counts = lines.flatMap(lambda x: x.split(' ')) \
                   .map(lambda x: (x, 1)) \
@@ -102,6 +112,7 @@ if __name__ == "__main__":
     '''
     
     '''
+    lines = sc.textFile(file_path, 1)
     # test goupByKey
     group = lines.flatMap(lambda x: x.split(' ')).map(lambda x: (x, 1)).groupByKey()
     output = group.collect()
