@@ -101,7 +101,7 @@ do
     ${IRSTLM}/build-sublm.pl --size ${NGRAM_SIZE} --ngrams ${subngram} --sublm ${LM}.${extension}
 done
 
-${IRSTLM}/merge-sublm.pl --size ${SPLIT} --sublm ${LM} -lm ${iARPA}.gz
+${IRSTLM}/merge-sublm.pl --size ${NGRAM_SIZE} --sublm ${LM} -lm ${iARPA}.gz
 
 function optional {
     ${IRSTLM}/quantize-lm ${iARPA} ${qARPA}
