@@ -101,13 +101,13 @@ do
     ${IRSTLM}/build-sublm.pl --size ${NGRAM_SIZE} --ngrams ${subngram} --sublm ${LM}.${extension}
 done
 
-${IRSTLM}/merge-sublm.pl --size ${SPLIT} --sublm ${LM} -lm ${iARPA}
+${IRSTLM}/merge-sublm.pl --size ${SPLIT} --sublm ${LM} -lm ${iARPA}.gz
 
 function optional {
     ${IRSTLM}/quantize-lm ${iARPA} ${qARPA}
 }
 
-gunzip ${iARPA}
+gunzip ${iARPA}.gz
 ${IRSTLM}/compile-lm --text=yes ${iARPA} ${ARPA}
 
 ${KENLM}/build_binary -s -i -w mmap ${ARPA} ${ARPA}.mmap
