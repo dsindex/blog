@@ -57,6 +57,8 @@ def create_node(tokens, i, j) :
 		node['label'] = tokens[i]
 		node['morphs']  = tokens[i+1]
 		node['leaf']  = True
+		node['nleaf'] = {}
+		node['pleaf'] = {}
 		return node
 	else :
 		return None
@@ -74,6 +76,24 @@ def make_edge(top, node) :
 	else :
 		return False
 	return True	
+
+def make_leaf_edge(node, history, depth=0) :
+	'''
+	tree의 leaf간 next,prev link 연결
+	즉, node['nleaf'], node['pleaf'] 설정
+	'''
+	if node['leaf'] :
+		length = len(history)
+		if length != 0 :
+			prev = history[-1]
+			prev['nleaf'] = node
+			node['pleaf'] = prev
+		history.append(node)
+
+	if node['lchild'] : 
+		make_leaf_edge(node['lchild'], history, depth+1)
+	if node['rchild'] : 
+		make_leaf_edge(node['rchild'], history, depth+1)
 
 def build_tree(sent, tokens) :
 	'''
@@ -128,6 +148,8 @@ def build_tree(sent, tokens) :
 		i += 1
 
 	if len(stack) == 1 and stack[-1]['label'] == 'ROOT' :
+		history = []
+		make_leaf_edge(root['lchild'], history, depth=0)
 		return root
 	else :
 		sys.stderr.write("build failure : %s\n" % (err))
@@ -254,11 +276,24 @@ def is_vx(morphs) :
 	if '/VX' in tokens[0] : return True
 	return False
 
+def is_vnp(morphs) :
+	tokens = morphs.split('+')
+	if len(tokens) <= 2 : return False
+	if '/NNB' in tokens[0] and '/VCP' in tokens[1] : return True
+	return False
+
 def check_vx_rule(gov_node) :
 	if not gov_node['parent'] : return False
 	if not gov_node['parent']['lchild'] : return False
 	# 태그가 'VX'로 시작
 	if not is_vx(gov_node['morphs']) : return False
+	return True
+
+def check_vnp_rule(gov_node) :
+	if not gov_node['parent'] : return False
+	if not gov_node['parent']['lchild'] : return False
+	# 'VNP 것/NNB + 이/VCP + 다/EF' 형태인지 검사
+	if not is_vnp(gov_node['morphs']) : return False
 	return True
 
 def find_gov(node) :
@@ -271,6 +306,8 @@ def find_gov(node) :
 	    해당 node의 right child를 따라서 leaf node까지 이동
 	2. VX rule
 	  - 보조용언을 governor로 갖는다면 본용언으로 바꿔준다. 
+	3. VNP rule
+	  - 'VNP 것/NNB + 이/VCP + 다/EF' 형태를 governor로 갖는다면 앞쪽 용언으로 바꿔준다. 
 	'''
 	# 첫번째로 right child가 있는 node를 탐색
 	# sibling link를 활용한다. 
@@ -290,14 +327,29 @@ def find_gov(node) :
 			if next['leaf'] :
 				gov_node = next
 				# -----------------------------------------------------------------
-				# gov_node의 태그가 'VX'로 시작하는 경우 parent->lchild를 따라간다. 
+				# gov_node가 vx rule을 만족하는 경우 parent->lchild를 따라간다. 
 				if check_vx_rule(gov_node) :
 					t_next = gov_node['parent']
 					while t_next :
-						# 본용언이 보조용언을 governor로 갖는 경우는 예외
-						if t_next['leaf'] and t_next['eoj_idx'] != node['eoj_idx'] :
+						# 새로운 지배소가 앞쪽에 있거나 같으면 안됨
+						if t_next['leaf'] and t_next['eoj_idx'] > node['eoj_idx'] :
 							gov_node = t_next
 							break
+						t_next = t_next['lchild']
+				# -----------------------------------------------------------------
+				# -----------------------------------------------------------------
+				# gov_node가 vnp rule을 만족하는 경우 parent->lchild를 따라간다. 
+				if check_vnp_rule(gov_node) :
+					t_next = gov_node['parent']
+					while t_next :
+						# 새로운 지배소가 앞쪽에 있거나 같으면 안됨
+						# ex) '이상기온에 따라 환경 변화에 적응력이 약한 사람에게 감기가 먼저 찾아오고 있다는 것이다.'
+						if t_next['leaf'] and 'VP' in t_next['label'] and t_next['eoj_idx'] > node['eoj_idx'] :
+							# 새로운 지배소와 기존 지배소간 거리가 너무 멀어도 안됨
+							# ex) '이번 판촉행사는 빠르게 늘고 있는 한국의 해외여행객을 겨냥한 것입니다.'
+							if abs(gov_node['eoj_idx'] - t_next['eoj_idx']) <= 2 : 
+								gov_node = t_next
+								break
 						t_next = t_next['lchild']
 				# -----------------------------------------------------------------
 				break
@@ -323,6 +375,108 @@ def tree2dep(node, depth=0) :
 		tree2dep(node['lchild'], depth+1)
 	if node['rchild'] : 
 		tree2dep(node['rchild'], depth+1)
+
+def find_ep(node) :
+	'''
+	parent를 따라서 처음으로 VP_MOD,S_MOD,VNP_MOD가 아닌 node를 탐색
+	해당 node의 most left leaf  = ep begin
+	해당 node의 most right leaf = ep end
+	'''
+	next = node
+	found = None
+	while next :
+		if next['label'] not in ['VP_MOD','VNP_MOD','S_MOD'] :
+			found = next
+			break
+		next = next['parent']
+
+	left_ep = None
+	right_ep = None
+	if found :
+		# left child를 따라서 leaf node까지
+		next = found
+		while next :
+			if next['leaf'] :
+				left_ep = next
+				break
+			next = next['lchild']
+		# right child를 따라서 leaf node까지
+		next = found
+		while next :
+			if next['leaf'] :
+				right_ep = next
+				break
+			next = next['rchild']
+	if left_ep and right_ep :
+		return left_ep['eoj_idx'], right_ep['eoj_idx']
+	return 0,0
+
+def is_ec(morphs) :
+	tokens = morphs.split('+')
+	if '/EC' in tokens[-1] : return True
+	return False
+
+def find_sp(node) :
+	'''
+	parent를 따라서 처음으로 VP,S가 아닌 node를 탐색
+	단, 현재 node는 parent의 right child여야 한다.
+	정지하기 전 node에 대해서
+	해당 node의 most left leaf  = sp begin
+	'''
+	next = node
+	prev = None
+	found = None
+	while next :
+		if next['label'] not in ['VP','S'] :
+			found = prev
+			break
+		if next['sibling'] :
+			found = next
+			break
+		prev = next
+		next = next['parent']
+
+	left_sp = None
+	if found :
+		# left child를 따라서 leaf node까지
+		next = found
+		while next :
+			if next['leaf'] :
+				left_sp = next
+				break
+			next = next['lchild']
+	if left_sp :
+		return left_sp['eoj_idx']
+	return 0
+
+def tree2embedded(node, depth=0) :
+	'''
+	tree에서 embedded phrase/clause 구조를 뽑아낸다. 
+	'''
+	if node['leaf'] :
+		eoj_idx = node['eoj_idx']
+		eoj     = node['eoj']
+		morphs  = modify_morphs(node['morphs'])
+		label   = node['label']
+		gov     = find_gov(node)
+		ep_begin = 0
+		ep_end   = 0
+		if label in ['VP_MOD','VNP_MOD'] : 
+			ep_begin,ep_end = find_ep(node)
+		sp_begin = 0
+		sp_end   = 0
+		if label in ['VP','VNP'] and is_ec(node['morphs']) : 
+			sp_begin = find_sp(node)
+			sp_end   = eoj_idx
+			if sp_begin == sp_end : # 같은 경우는 의미없음
+				sp_begin = 0
+				sp_end = 0
+		out = [eoj_idx, eoj, morphs, label, gov, ep_begin, ep_end, sp_begin, sp_end]
+		print '\t'.join([str(e) for e in out])
+	if node['lchild'] : 
+		tree2embedded(node['lchild'], depth+1)
+	if node['rchild'] : 
+		tree2embedded(node['rchild'], depth+1)
 # -------------------------------------------------------------------------
 
 def spill(bucket, mode) :
@@ -349,18 +503,19 @@ def spill(bucket, mode) :
 		history  = []
 		tree2con(tree['lchild'], t_tokens, history, depth=0)
 		print ''.join(t_tokens).strip()
-		print '\n',
-		return True
 	if mode == 1 : # print dependency tree
 		tree2dep(tree['lchild'], depth=0)
-		print '\n',
-		return True
+	if mode == 2 : # print embedded phrase/clause tagged tree
+		tree2embedded(tree['lchild'], depth=0)
+
+	print '\n',
+	return True
 
 if __name__ == '__main__':
 
 	parser = OptionParser()
 	parser.add_option("--verbose", action="store_const", const=1, dest="verbose", help="verbose mode")
-	parser.add_option("-m", "--mode", dest="mode", help="mode : 0(constituent), 1(dependency)", metavar="mode")
+	parser.add_option("-m", "--mode", dest="mode", help="mode : 0(constituent), 1(dependency), 2(embedded phrase/clause)", metavar="mode")
 	(options, args) = parser.parse_args()
 
 	if options.verbose : VERBOSE = 1
