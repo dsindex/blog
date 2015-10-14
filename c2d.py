@@ -282,6 +282,22 @@ def is_vnp(morphs) :
 	if '/NNB' in tokens[0] and '/VCP' in tokens[1] : return True
 	return False
 
+def is_va(morphs) :
+	tokens = morphs.split('+')
+	if '있/VA' in tokens[0] or '없/VA' in tokens[0] : return True
+	else : return False
+
+def is_nnb(morphs) :
+	tokens = morphs.split('+')
+	if '/NNB' in tokens[0] : return True
+	return False
+
+def is_r_etm(morphs) :
+	tokens = morphs.split('+')
+	if 'ᆯ/ETM' in tokens[-1] or '을/ETM' in tokens[-1] or '를/ETM' in tokens[-1] : 
+		return True
+	else : return False
+
 def check_vx_rule(gov_node) :
 	if not gov_node['parent'] : return False
 	if not gov_node['parent']['lchild'] : return False
@@ -296,6 +312,66 @@ def check_vnp_rule(gov_node) :
 	if not is_vnp(gov_node['morphs']) : return False
 	return True
 
+def check_va_rule(gov_node) :
+	if not gov_node['parent'] : return False
+	if not gov_node['parent']['lchild'] : return False
+	# 'ㄹ NNB 있다/없다' 형태인지 검사
+	if is_va(gov_node['morphs']) : 
+		pleaf = None
+		if gov_node['pleaf'] : pleaf = gov_node['pleaf']
+		if pleaf and is_nnb(pleaf['morphs']) :
+			ppleaf = None
+			if pleaf['pleaf'] : 
+				ppleaf = pleaf['pleaf']
+			if ppleaf and is_r_etm(ppleaf['morphs']) : 
+				return True
+	return False
+
+def find_for_vx_rule(node, gov_node) :
+	found = None
+	t_next = gov_node['parent']
+	while t_next :
+		# 새로운 지배소가 앞쪽에 있거나 같으면 안됨
+		if t_next['leaf'] and t_next['eoj_idx'] > node['eoj_idx'] :
+			found = t_next
+			break
+		t_next = t_next['lchild']
+	return found
+
+def find_for_vnp_rule(node, gov_node) :
+	found = None
+	t_next = gov_node['parent']
+	while t_next :
+		# 새로운 지배소가 앞쪽에 있거나 같으면 안됨
+		# ex) '이상기온에 따라 환경 변화에 적응력이 약한 사람에게 감기가 먼저 찾아오고 있다는 것이다.'
+		if t_next['leaf'] and 'VP' in t_next['label'] and t_next['eoj_idx'] > node['eoj_idx'] :
+			# 새로운 지배소와 기존 지배소간 거리가 너무 멀어도 안됨
+			# ex) '이번 판촉행사는 빠르게 늘고 있는 한국의 해외여행객을 겨냥한 것입니다.'
+			if abs(gov_node['eoj_idx'] - t_next['eoj_idx']) <= 2 : 
+				found = t_next
+				break
+		t_next = t_next['lchild']
+	return found
+
+def find_for_va_rule(node, gov_node, search_mode=1) :
+	found = None
+	if search_mode == 2 : # parent->parent 부터 탐색이 필요한 경우
+		t_next = gov_node['parent']
+		if t_next and t_next['parent'] : 
+			t_next = t_next['parent']
+	else : # 일반적인 경우
+		t_next = gov_node['parent']
+	while t_next :
+		# 새로운 지배소가 앞쪽에 있거나 같으면 안됨
+		# ex) '걸쭉한 입담과 유머는 그에게서 떼어놓을 수 없다'
+		if t_next['leaf'] and 'VP' in t_next['label'] and t_next['eoj_idx'] > node['eoj_idx'] :
+			# 새로운 지배소와 기존 지배소간 거리가 너무 멀어도 안됨
+			if abs(gov_node['eoj_idx'] - t_next['eoj_idx']) <= 2 : 
+				found = t_next
+				break
+		t_next = t_next['lchild']
+	return found
+
 def find_gov(node) :
 	'''
 	* node = leaf node
@@ -308,6 +384,9 @@ def find_gov(node) :
 	  - 보조용언을 governor로 갖는다면 본용언으로 바꿔준다. 
 	3. VNP rule
 	  - 'VNP 것/NNB + 이/VCP + 다/EF' 형태를 governor로 갖는다면 앞쪽 용언으로 바꿔준다. 
+	4. VA rule
+	  - '있/VA, 없/VA'가 governor인 경우, 앞쪽에 'ㄹ NNB' 형태가 오면 앞쪽 용언으로 바꿔준다. 
+	    node['pleaf'] 링크를 활용한다. 
 	'''
 	# 첫번째로 right child가 있는 node를 탐색
 	# sibling link를 활용한다. 
@@ -329,28 +408,22 @@ def find_gov(node) :
 				# -----------------------------------------------------------------
 				# gov_node가 vx rule을 만족하는 경우 parent->lchild를 따라간다. 
 				if check_vx_rule(gov_node) :
-					t_next = gov_node['parent']
-					while t_next :
-						# 새로운 지배소가 앞쪽에 있거나 같으면 안됨
-						if t_next['leaf'] and t_next['eoj_idx'] > node['eoj_idx'] :
-							gov_node = t_next
-							break
-						t_next = t_next['lchild']
-				# -----------------------------------------------------------------
-				# -----------------------------------------------------------------
+					new_gov_node = find_for_vx_rule(node, gov_node)
+					if new_gov_node : gov_node = new_gov_node
 				# gov_node가 vnp rule을 만족하는 경우 parent->lchild를 따라간다. 
 				if check_vnp_rule(gov_node) :
-					t_next = gov_node['parent']
-					while t_next :
-						# 새로운 지배소가 앞쪽에 있거나 같으면 안됨
-						# ex) '이상기온에 따라 환경 변화에 적응력이 약한 사람에게 감기가 먼저 찾아오고 있다는 것이다.'
-						if t_next['leaf'] and 'VP' in t_next['label'] and t_next['eoj_idx'] > node['eoj_idx'] :
-							# 새로운 지배소와 기존 지배소간 거리가 너무 멀어도 안됨
-							# ex) '이번 판촉행사는 빠르게 늘고 있는 한국의 해외여행객을 겨냥한 것입니다.'
-							if abs(gov_node['eoj_idx'] - t_next['eoj_idx']) <= 2 : 
-								gov_node = t_next
-								break
-						t_next = t_next['lchild']
+					new_gov_node = find_for_vnp_rule(node, gov_node)
+					if new_gov_node :
+						gov_node = new_gov_node
+						# 새로운 지배소가 '있다,없다'인 경우 
+						# check_va_rule을 한번 태워본다. 
+						if check_va_rule(gov_node) :
+							new_gov_node = find_for_va_rule(node, gov_node, search_mode=2)
+							if new_gov_node : gov_node = new_gov_node
+				# gov_node가 va rule을 만족하는 경우 parent->lchild를 따라간다. 
+				if check_va_rule(gov_node) :
+					new_gov_node = find_for_va_rule(node, gov_node, search_mode=1)
+					if new_gov_node : gov_node = new_gov_node
 				# -----------------------------------------------------------------
 				break
 			next = next['rchild']
@@ -414,11 +487,12 @@ def find_ep(node) :
 def is_ec(morphs) :
 	tokens = morphs.split('+')
 	if '/EC' in tokens[-1] : return True
+	if '/SP' in tokens[-1] and len(tokens) >= 2 and '/EC' in tokens[-2] : return True
 	return False
 
 def find_sp(node) :
 	'''
-	parent를 따라서 처음으로 VP,S가 아닌 node를 탐색
+	parent를 따라서 처음으로 VP,S,VNP_CMP가 아닌 node를 탐색
 	단, 현재 node는 parent의 right child여야 한다.
 	정지하기 전 node에 대해서
 	해당 node의 most left leaf  = sp begin
@@ -427,7 +501,7 @@ def find_sp(node) :
 	prev = None
 	found = None
 	while next :
-		if next['label'] not in ['VP','S'] :
+		if next['label'] not in ['VP','S','VNP_CMP'] :
 			found = prev
 			break
 		if next['sibling'] :
@@ -465,12 +539,13 @@ def tree2embedded(node, depth=0) :
 			ep_begin,ep_end = find_ep(node)
 		sp_begin = 0
 		sp_end   = 0
-		if label in ['VP','VNP'] and is_ec(node['morphs']) : 
+		if label in ['VP','VNP','VNP_CMP'] and is_ec(node['morphs']) : 
 			sp_begin = find_sp(node)
-			sp_end   = eoj_idx
-			if sp_begin == sp_end : # 같은 경우는 의미없음
-				sp_begin = 0
-				sp_end = 0
+			if sp_begin != 0 :
+				sp_end   = eoj_idx
+				if sp_begin == sp_end : # 같은 경우는 의미없음
+					sp_begin = 0
+					sp_end = 0
 		out = [eoj_idx, eoj, morphs, label, gov, ep_begin, ep_end, sp_begin, sp_end]
 		print '\t'.join([str(e) for e in out])
 	if node['lchild'] : 
