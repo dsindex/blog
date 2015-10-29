@@ -390,7 +390,7 @@ def find_gov(node) :
 	3. VNP rule
 	  - 'VNP 것/NNB + 이/VCP + 다/EF' 형태를 governor로 갖는다면 앞쪽 용언으로 바꿔준다. 
 	4. VA rule
-	  - '있/VA, 없/VA'가 governor인 경우, 앞쪽에 'ㄹ NNB' 형태가 오면 앞쪽 용언으로 바꿔준다. 
+	  - '있/VA, 없/VA, 같/VA'가 governor인 경우, 앞쪽에 'ㄹ NNB' 형태가 오면 앞쪽 용언으로 바꿔준다. 
 	    node['pleaf'] 링크를 활용한다. 
 	'''
 	# 첫번째로 right child가 있는 node를 탐색
@@ -420,7 +420,7 @@ def find_gov(node) :
 					new_gov_node = find_for_vnp_rule(node, gov_node)
 					if new_gov_node :
 						gov_node = new_gov_node
-						# 새로운 지배소가 '있다,없다'인 경우 
+						# 새로운 지배소가 '있다,없다,같다'인 경우 
 						# check_va_rule을 한번 태워본다. 
 						if check_va_rule(gov_node) :
 							new_gov_node = find_for_va_rule(node, gov_node, search_mode=2)
