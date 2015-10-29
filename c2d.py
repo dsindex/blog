@@ -284,7 +284,12 @@ def is_vnp(morphs) :
 
 def is_va(morphs) :
 	tokens = morphs.split('+')
-	if '있/VA' in tokens[0] or '없/VA' in tokens[0] : return True
+	# '/VV'로 잘못 태깅된 케이스도 커버
+	if '있/VA' in tokens[0] or \
+		'있/VV' in tokens[0] or \
+		'없/VA' in tokens[0] or \
+		'없/VV' in tokens[0] or \
+		'같/VA' in tokens[0] : return True
 	else : return False
 
 def is_nnb(morphs) :
@@ -315,7 +320,7 @@ def check_vnp_rule(gov_node) :
 def check_va_rule(gov_node) :
 	if not gov_node['parent'] : return False
 	if not gov_node['parent']['lchild'] : return False
-	# 'ㄹ NNB 있다/없다' 형태인지 검사
+	# 'ㄹ NNB 있다/없다/같다' 형태인지 검사
 	if is_va(gov_node['morphs']) : 
 		pleaf = None
 		if gov_node['pleaf'] : pleaf = gov_node['pleaf']
@@ -347,7 +352,7 @@ def find_for_vnp_rule(node, gov_node) :
 		if t_next['leaf'] and 'VP' in t_next['label'] and t_next['eoj_idx'] > node['eoj_idx'] :
 			# 새로운 지배소와 기존 지배소간 거리가 너무 멀어도 안됨
 			# ex) '이번 판촉행사는 빠르게 늘고 있는 한국의 해외여행객을 겨냥한 것입니다.'
-			if abs(gov_node['eoj_idx'] - t_next['eoj_idx']) <= 2 : 
+			if abs(gov_node['eoj_idx'] - t_next['eoj_idx']) <= 3 : 
 				found = t_next
 				break
 		t_next = t_next['lchild']
@@ -366,7 +371,7 @@ def find_for_va_rule(node, gov_node, search_mode=1) :
 		# ex) '걸쭉한 입담과 유머는 그에게서 떼어놓을 수 없다'
 		if t_next['leaf'] and 'VP' in t_next['label'] and t_next['eoj_idx'] > node['eoj_idx'] :
 			# 새로운 지배소와 기존 지배소간 거리가 너무 멀어도 안됨
-			if abs(gov_node['eoj_idx'] - t_next['eoj_idx']) <= 2 : 
+			if abs(gov_node['eoj_idx'] - t_next['eoj_idx']) <= 3 : 
 				found = t_next
 				break
 		t_next = t_next['lchild']
