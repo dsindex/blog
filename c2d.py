@@ -271,9 +271,27 @@ def tree2con(node, tokens, history, depth=0) :
 		tree2con(node['rchild'], tokens, history, depth+1)
 		tokens.append(')') # closed
 
-def is_vx(morphs) :
+def is_vx(gov_node) :
+	morphs = gov_node['morphs']
 	tokens = morphs.split('+')
 	if '/VX' in tokens[0] : return True
+	# VX는 아니지만 VX처럼 동작하는 용언, ex) '지니게 되다'
+	if '되/' in tokens[0] :
+		pleaf = None
+		if gov_node['pleaf'] : pleaf = gov_node['pleaf']
+		if pleaf :
+			morphs = pleaf['morphs']
+			tokens = morphs.split('+')
+			if '게/EC' in tokens[-1] : return True
+			if '면/EC' in tokens[-1] : return True
+			if '아도/EC' in tokens[-1] : return True
+	if '않/' in tokens[0] :
+		pleaf = None
+		if gov_node['pleaf'] : pleaf = gov_node['pleaf']
+		if pleaf :
+			morphs = pleaf['morphs']
+			tokens = morphs.split('+')
+			if '지/EC' in tokens[-1] : return True
 	return False
 
 def is_vnp(morphs) :
@@ -297,17 +315,19 @@ def is_nnb(morphs) :
 	if '/NNB' in tokens[0] : return True
 	return False
 
-def is_r_etm(morphs) :
+def is_etm(morphs) :
 	tokens = morphs.split('+')
-	if 'ᆯ/ETM' in tokens[-1] or '을/ETM' in tokens[-1] or '를/ETM' in tokens[-1] : 
-		return True
-	else : return False
+	if 'ᆫ/ETM' in tokens[-1] : return True
+	if '는/ETM' in tokens[-1] : return True
+	if 'ᆯ/ETM' in tokens[-1] : return True
+	if '을/ETM' in tokens[-1] : return True
+	if '를/ETM' in tokens[-1] : return True
+	return False
 
 def check_vx_rule(gov_node) :
 	if not gov_node['parent'] : return False
 	if not gov_node['parent']['lchild'] : return False
-	# 태그가 'VX'로 시작
-	if not is_vx(gov_node['morphs']) : return False
+	if not is_vx(gov_node) : return False
 	return True
 
 def check_vnp_rule(gov_node) :
@@ -321,6 +341,7 @@ def check_va_rule(gov_node) :
 	if not gov_node['parent'] : return False
 	if not gov_node['parent']['lchild'] : return False
 	# 'ㄹ NNB 있다/없다/같다' 형태인지 검사
+	# 'NNB'는 어절의 시작이 NNB이면 된다. 즉, '~ㄹ 수가 없다' 형태도 허용
 	if is_va(gov_node['morphs']) : 
 		pleaf = None
 		if gov_node['pleaf'] : pleaf = gov_node['pleaf']
@@ -328,7 +349,7 @@ def check_va_rule(gov_node) :
 			ppleaf = None
 			if pleaf['pleaf'] : 
 				ppleaf = pleaf['pleaf']
-			if ppleaf and is_r_etm(ppleaf['morphs']) : 
+			if ppleaf and is_etm(ppleaf['morphs']) : 
 				return True
 	return False
 
@@ -337,9 +358,17 @@ def find_for_vx_rule(node, gov_node) :
 	t_next = gov_node['parent']
 	while t_next :
 		# 새로운 지배소가 앞쪽에 있거나 같으면 안됨
-		if t_next['leaf'] and t_next['eoj_idx'] > node['eoj_idx'] :
+		if t_next['leaf'] and ('VP' in t_next['label'] or 'VNP' in t_next['label']) and t_next['eoj_idx'] > node['eoj_idx'] :
 			found = t_next
 			break
+		if t_next['lchild'] :
+			if 'S' in t_next['lchild']['label'] or 'VP' in t_next['lchild']['label'] or 'VNP' in t_next['lchild']['label'] :
+				t_next = t_next['lchild']
+				continue
+		if t_next['rchild'] :
+			if 'VP' in t_next['rchild']['label'] or 'VNP' in t_next['rchild']['label'] :
+				t_next = t_next['rchild']
+				continue
 		t_next = t_next['lchild']
 	return found
 
@@ -348,13 +377,19 @@ def find_for_vnp_rule(node, gov_node) :
 	t_next = gov_node['parent']
 	while t_next :
 		# 새로운 지배소가 앞쪽에 있거나 같으면 안됨
-		# ex) '이상기온에 따라 환경 변화에 적응력이 약한 사람에게 감기가 먼저 찾아오고 있다는 것이다.'
-		if t_next['leaf'] and 'VP' in t_next['label'] and t_next['eoj_idx'] > node['eoj_idx'] :
+		if t_next['leaf'] and ('VP' in t_next['label'] or 'VNP' in t_next['label']) and t_next['eoj_idx'] > node['eoj_idx'] :
 			# 새로운 지배소와 기존 지배소간 거리가 너무 멀어도 안됨
-			# ex) '이번 판촉행사는 빠르게 늘고 있는 한국의 해외여행객을 겨냥한 것입니다.'
 			if abs(gov_node['eoj_idx'] - t_next['eoj_idx']) <= 3 : 
 				found = t_next
 				break
+		if t_next['lchild'] :
+			if 'S' in t_next['lchild']['label'] or 'VP' in t_next['lchild']['label'] or 'VNP' in t_next['lchild']['label'] :
+				t_next = t_next['lchild']
+				continue
+		if t_next['rchild'] :
+			if 'VP' in t_next['rchild']['label'] or 'VNP' in t_next['rchild']['label'] :
+				t_next = t_next['rchild']
+				continue
 		t_next = t_next['lchild']
 	return found
 
@@ -368,8 +403,7 @@ def find_for_va_rule(node, gov_node, search_mode=1) :
 		t_next = gov_node['parent']
 	while t_next :
 		# 새로운 지배소가 앞쪽에 있거나 같으면 안됨
-		# ex) '걸쭉한 입담과 유머는 그에게서 떼어놓을 수 없다'
-		if t_next['leaf'] and 'VP' in t_next['label'] and t_next['eoj_idx'] > node['eoj_idx'] :
+		if t_next['leaf'] and ('VP' in t_next['label'] or 'VNP' in t_next['label']) and t_next['eoj_idx'] > node['eoj_idx'] :
 			# 새로운 지배소와 기존 지배소간 거리가 너무 멀어도 안됨
 			if abs(gov_node['eoj_idx'] - t_next['eoj_idx']) <= 3 : 
 				found = t_next
@@ -387,6 +421,7 @@ def find_gov(node) :
 	    해당 node의 right child를 따라서 leaf node까지 이동
 	2. VX rule
 	  - 보조용언을 governor로 갖는다면 본용언으로 바꿔준다. 
+	  - 보조용언은 아니지만 보조용언처럼 동작하는 용언도 비슷하게 처리한다. ex) '지니게 되다'
 	3. VNP rule
 	  - 'VNP 것/NNB + 이/VCP + 다/EF' 형태를 governor로 갖는다면 앞쪽 용언으로 바꿔준다. 
 	4. VA rule
@@ -619,7 +654,7 @@ if __name__ == '__main__':
 			bucket = []
 			continue
 
-		bucket.append(line)
+		if line : bucket.append(line)
 
 	if len(bucket) != 0 :
 		ret = spill(bucket, mode)
