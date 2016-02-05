@@ -52,3 +52,4 @@ model.fit(X_train, y_train,
           batch_size=100,
           show_accuracy=True)
 score = model.evaluate(X_test, y_test, batch_size=100, show_accuracy=True)
+print score
