@@ -34,7 +34,7 @@ def map_func2(entry) :
     return (key,reduce(lambda a,b: a+b,value))
     
 '''
-usage : spark-submit --master yarn-client --driver-memory 1g --executor-memory 2g --executor-cores 1 --num-executors 5 wordcount.py -f input_file_on_hdfs
+usage : spark-submit --master yarn-client --total-executor-cores 100 --executor-memory 512M wordcount.py -f input_file_on_hdfs
 '''
 if __name__ == "__main__":
     parser = OptionParser()
