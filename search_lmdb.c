@@ -120,6 +120,7 @@ int main(int    argc, char  *argv[])
     fprintf(stderr, "<+time> : sec = %d usec = %d\n",(int)(tv2.tv_sec-tv1.tv_sec),(int)(tv2.tv_usec-tv1.tv_usec));
 
     rc = mdb_txn_commit(txn);
+    txn = NULL;
     if(rc) {
         fprintf(stderr, "%s: txn_commit fail: %s\n", prog, mdb_strerror(rc));
         goto env_close;
