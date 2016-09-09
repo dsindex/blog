@@ -43,7 +43,10 @@ if __name__ == '__main__':
         key,value = line.split('\t',1)
         if not key or not value : continue
 
-        txn.put(key,value)
+        try : txn.put(key,value)
+        except Exception, e :
+            sys.stderr.write(str(e) + '\n')
+            continue
 
     durationTime = time.time() - startTime
     sys.stderr.write("duration time = %f\n" % durationTime)
