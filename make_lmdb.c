@@ -135,6 +135,7 @@ int main(int    argc, char  *argv[])
     }
     
     rc = mdb_txn_commit(txn);
+    txn = NULL;
     if(rc) {
         fprintf(stderr, "%s: txn_commit fail: %s\n", prog, mdb_strerror(rc));
         goto env_close;
