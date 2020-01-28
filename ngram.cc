@@ -94,7 +94,7 @@ static void computeNgrams(const std::string& word,
     for (size_t i = 0; i < word.size(); i++) {
         std::string ngram;
         if ((word[i] & 0xC0) == 0x80) continue;
-        for (size_t j = i, n = 1; j < word.size() && n <= MIN_NGRAM_SIZE; n++) {
+        for (size_t j = i, n = 1; j < word.size() && n <= MAX_NGRAM_SIZE; n++) {
             ngram.push_back(word[j++]);
             while (j < word.size() && (word[j] & 0xC0) == 0x80) {
                 ngram.push_back(word[j++]);
